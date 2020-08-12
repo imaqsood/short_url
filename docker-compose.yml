@@ -1,0 +1,59 @@
+version: '3'
+services:
+  short-app:
+    image: short-app
+    build: .
+    stdin_open: true
+    tty: true
+    command: bin/rails server --port 3000 --binding 0.0.0.0
+    env_file: ./dev.env
+    ports:
+    - "3000:3000"
+    depends_on:
+    - mariadb
+    - redis_dev
+    networks:
+    - app
+    working_dir: /app
+    volumes:
+    - .:/app
+
+  worker:
+    image: short-app
+    command: bundle exec rake resque:work
+    env_file: ./dev.env
+    working_dir: /app
+    volumes:
+    - .:/app:cached
+    depends_on:
+    - mariadb
+    - redis_dev
+    networks:
+    - app
+
+  mariadb:
+    image: mariadb
+    container_name: short_app_mariadb_dev
+    volumes:
+    - data-mysql:/var/lib/mysql
+    - ./mysql:/docker-entrypoint-initdb.d:ro
+    environment:
+    - MYSQL_ROOT_PASSWORD=password
+    - MYSQL_DATABASE=short_development
+    networks:
+    - app
+    ports:
+    - 3307:3306
+
+  redis_dev:
+    image: redis
+    container_name: redis_dev
+    networks:
+    - app
+
+volumes:
+  data-mysql:
+    driver: local
+
+networks:
+  app:
